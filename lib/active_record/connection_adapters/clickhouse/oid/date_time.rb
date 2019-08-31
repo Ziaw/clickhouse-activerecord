@@ -9,6 +9,8 @@ module ActiveRecord
           def serialize(value)
             value = super
 
+            return nil if value.nil?
+
             return value.strftime('%Y-%m-%d %H:%M:%S') unless value.acts_like?(:time)
 
             value.to_time.strftime('%Y-%m-%d %H:%M:%S')
