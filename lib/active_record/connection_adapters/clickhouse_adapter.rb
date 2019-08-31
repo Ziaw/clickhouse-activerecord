@@ -1,7 +1,3 @@
-# frozen_string_literal: true
-
-require 'clickhouse-activerecord/arel/visitors/to_sql'
-require 'clickhouse-activerecord/arel/table'
 require 'active_record/connection_adapters/abstract_adapter'
 require 'active_record/connection_adapters/clickhouse/oid/date'
 require 'active_record/connection_adapters/clickhouse/oid/date_time'
@@ -16,17 +12,19 @@ module ActiveRecord
     class << self
       # Establishes a connection to the database that's used by all Active Record objects
       def clickhouse_connection(config)
-        config = config.symbolize_keys
-        host = config[:host] || 'localhost'
-        port = config[:port] || 8123
+        config = config.symbolize_keys.reverse_merge(port: 8123)
 
         if config.key?(:database)
           database = config[:database]
         else
           raise ArgumentError, 'No database specified. Missing argument: database.'
         end
-
-        ConnectionAdapters::ClickhouseAdapter.new(nil, logger, [host, port], { user: config[:username], password: config[:password], database: database }.compact, config[:debug])
+        ConnectionAdapters::ClickhouseAdapter.new(
+          nil,
+          logger,
+          config,
+          { user: config[:username], password: config[:password], database: database }.compact
+        )
       end
     end
   end
@@ -87,6 +85,7 @@ module ActiveRecord
         @debug = debug
 
         @prepared_statements = false
+        @visitor = ClickhouseActiverecord::Arel::Visitors::ToSql.new self
 
         connect
       end
@@ -123,6 +122,7 @@ module ActiveRecord
         register_class_with_limit m, %r(String), Type::String
         register_class_with_limit m, 'Date',  Clickhouse::OID::Date
         register_class_with_limit m, 'DateTime',  Clickhouse::OID::DateTime
+        m.register_type 'UInt64', Clickhouse::OID::BigInteger.new
         register_class_with_limit m, %r(Uint8), Type::UnsignedInteger
         m.alias_type 'UInt16', 'UInt8'
         m.alias_type 'UInt32', 'UInt8'
@@ -131,6 +131,13 @@ module ActiveRecord
         m.alias_type 'Int16', 'Int8'
         m.alias_type 'Int32', 'Int8'
         register_class_with_limit m, %r(Int64), Type::Integer
+      end
+
+      # Queries the database and returns the results in an Array-like object
+      def query(sql, _name = nil)
+        res = @connection.post("/?#{@config.merge(query: '').to_param}", "#{sql} FORMAT JSONCompact")
+        raise ActiveRecord::ActiveRecordError, "Response code: #{res.code}:\n#{res.body}" unless res.code.to_i == 200
+        JSON.parse res.body
       end
 
       # Quoting time without microseconds
@@ -224,8 +231,15 @@ module ActiveRecord
       private
 
       def connect
-        # for ssl port need use ssl
-        @connection = Net::HTTP.start(@connection_parameters[0], @connection_parameters[1], use_ssl: @connection_parameters[1] == 443)
+        @connection = Net::HTTP.start(
+          @connection_parameters[:host],
+          @connection_parameters[:port],
+          nil,
+          nil,
+          nil,
+          nil,
+          @connection_parameters
+        )
       end
     end
   end
