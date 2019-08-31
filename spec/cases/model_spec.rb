@@ -9,7 +9,7 @@ RSpec.describe 'Model', :migrations do
 
   before do
     migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'add_sample_data')
-    quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+    quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
   end
 
   let(:date) { Date.today }
@@ -18,8 +18,10 @@ RSpec.describe 'Model', :migrations do
     it 'creates a new record' do
       expect {
         model.create!(
-          event_name: 'some event',
-          date: date
+          event_name: 'some event\'',
+          date: date,
+          datetime: Time.now,
+          boolean: true,
         )
       }.to change { model.count }
     end

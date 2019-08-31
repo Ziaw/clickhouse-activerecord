@@ -50,6 +50,6 @@ namespace :clickhouse do
 
   desc 'Migrate the clickhouse database'
   task migrate: :load_config do
-    Rake::Task['db:migrate'].execute
+    ActiveRecord::Tasks::DatabaseTasks.migrate
   end
 end

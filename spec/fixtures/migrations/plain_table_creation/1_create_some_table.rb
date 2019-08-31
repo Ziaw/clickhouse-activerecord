@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-class CreateSomeTable < ActiveRecord::Migration[5.0]
+class CreateSomeTable < ActiveRecord::Migration[6.0]
   def up
     execute <<~SQL
       CREATE TABLE some (

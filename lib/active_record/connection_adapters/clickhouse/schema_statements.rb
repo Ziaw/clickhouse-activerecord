@@ -5,16 +5,20 @@ module ActiveRecord
     module Clickhouse
       module SchemaStatements
         def execute(sql, name = nil)
-          do_execute(sql, name)
+          do_execute(sql, name, format: nil)
         end
 
-        def exec_insert(sql, name, _binds, _pk = nil, _sequence_name = nil)
-          new_sql = sql.dup.sub(/ (DEFAULT )?VALUES/, " VALUES")
-          do_execute(new_sql, name, format: nil)
+        def exec_insert(sql, name, binds, _pk = nil, _sequence_name = nil)
+          sql = apply_binds sql, binds if binds.any?
+
+          sql = sql.sub(/ (DEFAULT )?VALUES/, " VALUES")
+          do_execute(sql, name, format: nil)
           true
         end
 
         def exec_query(sql, name = nil, binds = [], prepare: false)
+          sql = apply_binds sql, binds if binds.any?
+
           result = do_execute(sql, name)
           ActiveRecord::Result.new(result['meta'].map { |m| m['name'] }, result['data'])
         end
@@ -121,7 +125,7 @@ module ActiveRecord
         end
 
         def create_table_definition(*args)
-          Clickhouse::TableDefinition.new(*args)
+          Clickhouse::TableDefinition.new(self, *args)
         end
 
         def new_column_from_field(table_name, field)
@@ -130,7 +134,7 @@ module ActiveRecord
           default = field[3]
           default_value = extract_value_from_default(default)
           default_function = extract_default_function(default_value, default)
-          ClickhouseColumn.new(field[0], default_value, type_metadata, field[1].include?('Nullable'), table_name, default_function)
+          ClickhouseColumn.new(field[0], default_value, type_metadata, field[1].include?('Nullable'), default_function)
         end
 
         protected

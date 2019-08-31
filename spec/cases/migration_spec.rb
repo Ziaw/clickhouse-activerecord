@@ -12,7 +12,7 @@ RSpec.describe 'Migration', :migrations do
       context 'plain' do
         it 'creates a table' do
           migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'plain_table_creation')
-          quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+          quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
 
           current_schema = schema(model)
 
@@ -28,27 +28,27 @@ RSpec.describe 'Migration', :migrations do
         context 'empty' do
           it 'creates a table' do
             migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_table_creation')
-            quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+            quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
 
             current_schema = schema(model)
 
             expect(current_schema.keys.count).to eq(1)
             expect(current_schema).to have_key('id')
-            expect(current_schema['id'].sql_type).to eq('UInt32')
+            expect(current_schema['id'].sql_type).to eq('UInt64')
           end
         end
 
         context 'with engine' do
           it 'creates a table' do
             migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_table_with_engine_creation')
-            quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+            quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
 
             current_schema = schema(model)
 
             expect(current_schema.keys.count).to eq(2)
             expect(current_schema).to have_key('id')
             expect(current_schema).to have_key('date')
-            expect(current_schema['id'].sql_type).to eq('UInt32')
+            expect(current_schema['id'].sql_type).to eq('UInt64')
             expect(current_schema['date'].sql_type).to eq('Date')
           end
         end
@@ -57,7 +57,7 @@ RSpec.describe 'Migration', :migrations do
           context 'decimal' do
             it 'creates a table with valid scale and precision' do
               migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_table_with_decimal_creation')
-              quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+              ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up
 
               current_schema = schema(model)
 
@@ -65,7 +65,7 @@ RSpec.describe 'Migration', :migrations do
               expect(current_schema).to have_key('id')
               expect(current_schema).to have_key('money')
               expect(current_schema).to have_key('balance')
-              expect(current_schema['id'].sql_type).to eq('UInt32')
+              expect(current_schema['id'].sql_type).to eq('UInt64')
               expect(current_schema['money'].sql_type).to eq('Nullable(Decimal(16, 4))')
               expect(current_schema['balance'].sql_type).to eq('Decimal(32, 2)')
             end
@@ -77,11 +77,11 @@ RSpec.describe 'Migration', :migrations do
     describe 'drop table' do
       it 'drops table' do
         migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_drop_table')
-        quietly { ActiveRecord::MigrationContext.new(migrations_dir).up(1) }
+        quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up(1) }
 
         expect(ActiveRecord::Base.connection.tables).to include('some')
 
-        quietly { ActiveRecord::MigrationContext.new(migrations_dir).up(2) }
+        quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up(2) }
 
         expect(ActiveRecord::Base.connection.tables).not_to include('some')
       end
@@ -90,7 +90,7 @@ RSpec.describe 'Migration', :migrations do
     describe 'add column' do
       it 'adds a new column' do
         migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_add_column')
-        quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+        quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
 
         current_schema = schema(model)
 
@@ -98,7 +98,7 @@ RSpec.describe 'Migration', :migrations do
         expect(current_schema).to have_key('id')
         expect(current_schema).to have_key('date')
         expect(current_schema).to have_key('new_column')
-        expect(current_schema['id'].sql_type).to eq('UInt32')
+        expect(current_schema['id'].sql_type).to eq('UInt64')
         expect(current_schema['date'].sql_type).to eq('Date')
         expect(current_schema['new_column'].sql_type).to eq('Nullable(UInt64)')
       end
@@ -107,7 +107,7 @@ RSpec.describe 'Migration', :migrations do
     describe 'drop column' do
       it 'drops column' do
         migrations_dir = File.join(FIXTURES_PATH, 'migrations', 'dsl_drop_column')
-        quietly { ActiveRecord::MigrationContext.new(migrations_dir).up }
+        quietly { ActiveRecord::MigrationContext.new(migrations_dir, ActiveRecord::SchemaMigration).up }
 
         current_schema = schema(model)
 

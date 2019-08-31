@@ -7,7 +7,7 @@ module ActiveRecord
 
         def integer(*args, **options)
           if options[:limit] == 8
-            args.each { |name| column(name, :big_integer, options.except(:limit)) }
+            args.each { |name| column(name, :bigint, options.except(:limit)) }
           else
             super
           end

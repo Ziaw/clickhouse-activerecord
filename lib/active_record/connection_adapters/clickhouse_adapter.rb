@@ -67,12 +67,14 @@ module ActiveRecord
       NATIVE_DATABASE_TYPES = {
         string: { name: 'String' },
         integer: { name: 'UInt32' },
+        bigint: { name: 'UInt64' },
         big_integer: { name: 'UInt64' },
         float: { name: 'Float32' },
         decimal: { name: 'Decimal' },
         datetime: { name: 'DateTime' },
         date: { name: 'Date' },
-        boolean: { name: 'UInt8' }
+        boolean: { name: 'UInt8' },
+        primary_key: { name: 'UInt64' }
       }.freeze
 
       include Clickhouse::SchemaStatements
@@ -145,8 +147,14 @@ module ActiveRecord
       end
 
       def column_name_for_operation(operation, node) # :nodoc:
-        column_name_from_arel_node(node)
+        OPERATION_ALIASES.fetch(operation) { operation.downcase }
       end
+
+      OPERATION_ALIASES = { # :nodoc:
+        "maximum" => "max",
+        "minimum" => "min",
+        "average" => "avg",
+      }.freeze
 
       # Executes insert +sql+ statement in the context of this connection using
       # +binds+ as the bind substitutes. +name+ is logged along with
@@ -185,6 +193,27 @@ module ActiveRecord
       def drop_table(table_name, options = {}) # :nodoc:
         do_execute "DROP TABLE#{' IF EXISTS' if options[:if_exists]} #{quote_table_name(table_name)}"
       end
+
+      def variable_to_s(var)
+        return 'NULL' if var.value.nil?
+
+        case var.type
+        when ActiveModel::Type::ImmutableString, ActiveModel::Type::DateTime, ActiveModel::Type::Date
+          quote var.value_for_database
+        when ActiveModel::Type::Boolean
+          var.value ? '1' : '0'
+        else
+          var.value_for_database
+        end
+      end
+
+      def apply_binds(sql, binds)
+        # Very dirty and naive binds implementation
+        # TODO at least skip '?' in string literals
+        sql.gsub(/\?/) { variable_to_s(binds.shift) }
+      end
+
+
 
       protected
 
